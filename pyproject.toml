@@ -1,0 +1,35 @@
+[project]
+name = "zarr-fanout-cke"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Remco Leijenaar" }]
+requires-python = ">=3.11"
+dependencies = [
+    "zarr>=3.1.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.11"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--color=yes",
+    "--tb=short",
+    "-v"
+]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.14.1",
+]
+
+[project.entry-points."zarr.chunk_key_encoding"]
+"fanout" = "zarr_fanout_cke:FanoutChunkKeyEncoding"
