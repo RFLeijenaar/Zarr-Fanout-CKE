@@ -4,12 +4,12 @@ A Python implementation of the [`fanout`](https://github.com/zarr-developers/zar
 
 ## Overview
 
-The fanout chunk key encoding converts chunk coordinates into a `/`-separated hierarchical path by splitting each coordinate into multiple nodes such that no node in the hierarchy exceeds a predefined maximum number of children. This is particularly useful for filesystems or other hierarchical stores that experience performance issues when directories contain many entries.
+The *fanout* chunk key encoding converts chunk coordinates into a `/`-separated hierarchical path by splitting each coordinate into multiple nodes such that no node in the hierarchy exceeds a predefined maximum number of children. This is particularly useful for filesystems or other hierarchical stores that experience performance issues when directories contain many entries. The encoding ensures lexicographical ordering of chunk keys.
 
 ## Features
 
 - **Hierarchical chunk organization**: Splits large coordinate values across multiple directory levels
-- **Configurable fanout**: Control the maximum number of children per directory node (default: 1001)
+- **Configurable fanout**: Control the maximum number of children per directory node (default: 1000)
 - **Seamless zarr-python integration**: Works as a drop-in chunk key encoding for zarr arrays
 - **Performance optimization**: Prevents filesystem performance degradation from directories with too many files
 
@@ -58,26 +58,30 @@ arr[0:100, 0:100] = np.random.random((100, 100))
 
 The `FanoutChunkKeyEncoding` accepts the following parameter:
 
-- **`max_children`** (int, default=1001): Maximum number of child entries allowed within a single directory node. Must be ≥ 3.
+- **`max_children`** (int, default=1000): Maximum number of child entries allowed within a single directory node. Must be ≥ 100.
 
 ## How it works
 
 The algorithm converts chunk coordinates into hierarchical paths:
 
-1. For each coordinate dimension, create a dimension marker `d{dim}`
-2. Express the coordinate in base `max_children - 1`
-3. Create a subpath: `d{dim}/{digit0}/{digit1}/.../{digitN}`
-4. Concatenate all dimension subpaths and append `/c` for the chunk file
+1. Compute `decimal_len`, the number of digits in `max_children - 1`.
+2. For each coordinate:
+   * Split the coordinate into decimal chunks of length `decimal_len`, starting from the least significant digits.
+   * Pad the leftmost chunk with zeros as needed so that it has exactly `decimal_len` digits.
+   * Prepend the number of chunks of the coordinate before the sequence of chunks.
+3. Concatenate all coordinate chunk sequences in order (from the lowest to highest dimension) and prepend `"c"` as the root.
+4. Join all parts using `/` as a separator.
 
 ### Example
 
-With `max_children = 101` (effective base = 100):
+With `max_children = 1000` (decimal length = 3):
 
-| Coordinates        | Chunk key                    |
-| ------------------ | ---------------------------- |
-| `()`               | `c`                          |
-| `(123,)`           | `d0/1/23/c`                  |
-| `(1234, 5, 67890)` | `d0/12/34/d1/5/d2/6/78/90/c` |
+| Coordinates                  | Chunk key                                 |
+| ---------------------------- | ----------------------------------------- |
+| `()`                         | `c`                                       |
+| `(0)`                        | `c/1/000`                                 |
+| `(12,)`                      | `c/1/012`                                 |
+| `(1234, 5, 6789012)`         | `c/2/001/234/1/005/3/006/789/012`         |
 
 ## Development
 
