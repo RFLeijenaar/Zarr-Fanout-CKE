@@ -4,14 +4,15 @@ A Python implementation of the [`fanout`](https://github.com/zarr-developers/zar
 
 ## Overview
 
-The *fanout* chunk key encoding converts chunk coordinates into a `/`-separated hierarchical path by splitting each coordinate into multiple nodes such that no node in the hierarchy exceeds a predefined maximum number of children. This is particularly useful for filesystems or other hierarchical stores that experience performance issues when directories contain many entries. The encoding ensures lexicographical ordering of chunk keys.
+The *fanout* chunk key encoding converts chunk coordinates into a `/`-separated hierarchical path by splitting each coordinate into multiple nodes such that no node in the hierarchy exceeds a predefined maximum number of children. This is particularly useful for filesystems or other hierarchical stores that experience performance issues when directories contain many entries. The encoding also ensures lexicographical ordering of chunk keys.
 
 ## Features
 
 - **Hierarchical chunk organization**: Splits large coordinate values across multiple directory levels
-- **Configurable fanout**: Control the maximum number of children per directory node (default: 1000)
+- **Configurable fanout**: Control the maximum number of children per directory node in powers of 10
 - **Seamless zarr-python integration**: Works as a drop-in chunk key encoding for zarr arrays
 - **Performance optimization**: Prevents filesystem performance degradation from directories with too many files
+- **Lexicographical ordering**: Ensures chunk keys are sorted lexicographically for efficient access patterns
 
 ## Requirements
 
@@ -58,30 +59,38 @@ arr[0:100, 0:100] = np.random.random((100, 100))
 
 The `FanoutChunkKeyEncoding` accepts the following parameter:
 
-- **`max_children`** (int, default=1000): Maximum number of child entries allowed within a single directory node. Must be ≥ 100.
+- **`max_children`** (int, default=1000): Maximum number of child entries allowed within a single directory node. Must be ≥ 100. If a non-power-of-10 value is provided, it will be floored to the nearest lower power of 10.
 
 ## How it works
 
 The algorithm converts chunk coordinates into hierarchical paths:
 
-1. Compute `decimal_len`, the number of digits in `max_children - 1`.
+1. Compute `decimal_len`, the number of digits in `max_children - 1` (base-10 representation).
 2. For each coordinate:
-   * Split the coordinate into decimal chunks of length `decimal_len`, starting from the least significant digits.
-   * Pad the leftmost chunk with zeros as needed so that it has exactly `decimal_len` digits.
-   * Prepend the number of chunks of the coordinate before the sequence of chunks.
+    1. Split the coordinate (base-10) into chunks of `decimal_len` digits, starting from the least significant digits.
+    2. Left-pad the leftmost chunk with zeros as needed so that it has exactly `decimal_len` digits.
+    3. The number of chunks for each coordinate minus one (`num_chunks - 1`) must be prepended to the sequence of chunks.
+
+    For example:
+    ```
+    coordinate = 1234567  =>  final_sequence = [2, 001, 234, 567]
+    ```
+
 3. Concatenate all coordinate chunk sequences in order (from the lowest to highest dimension) and prepend `"c"` as the root.
 4. Join all parts using `/` as a separator.
 
-### Example
+> **Note:** This ensures that no node contains more than `max_children` entries and that chunk keys are lexicographically sorted.
 
-With `max_children = 1000` (decimal length = 3):
+### Example
+With `max_children = 1000` (`decimal_len = 3`):
 
 | Coordinates                  | Chunk key                                 |
 | ---------------------------- | ----------------------------------------- |
 | `()`                         | `c`                                       |
 | `(0)`                        | `c/0/000`                                 |
 | `(12,)`                      | `c/0/012`                                 |
-| `(1234, 5, 6789012)`         | `c/1/001/234/0/005/2/006/789/012`         |
+| `(1234, 5, 0, 6789012)`      | `c/1/001/234/0/005/0/000/2/006/789/012`   |
+
 
 ## Development
 
