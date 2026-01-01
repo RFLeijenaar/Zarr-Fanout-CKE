@@ -25,7 +25,7 @@ class FanoutChunkKeyEncoding(ChunkKeyEncoding):
         parts: list[str] = ["c"]
         for coord in chunk_coords:
             coords = self._fanout_coord(coord)
-            parts.append(str(len(coords)))
+            parts.append(str(len(coords) - 1))
             parts.extend(coords)
         return "/".join(parts)
 

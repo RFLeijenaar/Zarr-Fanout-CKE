@@ -111,16 +111,16 @@ class TestFanoutChunkKeyEncodingEncodeChunkKey:
         encoding = FanoutChunkKeyEncoding(max_children=1000)
 
         assert encoding.encode_chunk_key(()) == "c"
-        assert encoding.encode_chunk_key((12,)) == "c/1/012"
-        assert encoding.encode_chunk_key((1234, 5, 67890)) == "c/2/001/234/1/005/2/067/890"
+        assert encoding.encode_chunk_key((12,)) == "c/0/012"
+        assert encoding.encode_chunk_key((1234, 5, 67890)) == "c/1/001/234/0/005/1/067/890"
         assert (
             encoding.encode_chunk_key((123, 3455678, 9123432435))
-            == "c/1/123/3/003/455/678/4/009/123/432/435"
+            == "c/0/123/2/003/455/678/3/009/123/432/435"
         )
-        assert encoding.encode_chunk_key((1234, 0, 239395956)) == "c/2/001/234/1/000/3/239/395/956"
+        assert encoding.encode_chunk_key((1234, 0, 239395956)) == "c/1/001/234/0/000/2/239/395/956"
         assert (
             encoding.encode_chunk_key((0, 234235, 34, 3453456343456))
-            == "c/1/000/2/234/235/1/034/5/003/453/456/343/456"
+            == "c/0/000/1/234/235/0/034/4/003/453/456/343/456"
         )
 
     def test_encode_empty_coords(self):
@@ -246,11 +246,11 @@ class TestFanoutChunkKeyEncodingIntegration:
         np.testing.assert_array_equal(reopened_arr[50:60, 56:64], test_data_chunk_5_7)
 
         # Verify that chunk keys follow the fanout pattern by checking the filesystem
-        # Chunk (0, 0) should be at path "c/1/00/1/00"
-        assert (store_path / "c" / "1" / "00" / "1" / "00").exists()
+        # Chunk (0, 0) should be at path "c/0/00/0/00"
+        assert (store_path / "c" / "0" / "00" / "0" / "00").exists()
 
-        # Chunk (1, 2) should be at path "c/1/01/1/02"
-        assert (store_path / "c" / "1" / "01" / "1" / "02").exists()
+        # Chunk (1, 2) should be at path "c/0/01/0/02"
+        assert (store_path / "c" / "0" / "01" / "0" / "02").exists()
 
-        # Chunk (5, 7) should be at path "c/1/05/1/07"
-        assert (store_path / "c" / "1" / "05" / "1" / "07").exists()
+        # Chunk (5, 7) should be at path "c/0/05/0/07"
+        assert (store_path / "c" / "0" / "05" / "0" / "07").exists()
