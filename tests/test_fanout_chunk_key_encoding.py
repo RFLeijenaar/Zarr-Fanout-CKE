@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import zarr
 from pathlib import Path
+import warnings
 
 from zarr_fanout_cke import FanoutChunkKeyEncoding
 
@@ -48,13 +49,21 @@ class TestFanoutChunkKeyEncoding:
 
     def test_max_children_flooring(self):
         """Test that max_children is floored to the nearest power of 10."""
-        encoding = FanoutChunkKeyEncoding(max_children=150)
+        with pytest.warns(UserWarning, match=r"it will be floored to 100"):
+            encoding = FanoutChunkKeyEncoding(max_children=150)
         assert encoding.max_children == 100
-        encoding = FanoutChunkKeyEncoding(max_children=999)
+
+        with pytest.warns(UserWarning, match=r"it will be floored to 100"):
+            encoding = FanoutChunkKeyEncoding(max_children=999)
         assert encoding.max_children == 100
-        encoding = FanoutChunkKeyEncoding(max_children=1000)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            encoding = FanoutChunkKeyEncoding(max_children=1000)
         assert encoding.max_children == 1000
-        encoding = FanoutChunkKeyEncoding(max_children=1234)
+
+        with pytest.warns(UserWarning, match=r"it will be floored to 1000"):
+            encoding = FanoutChunkKeyEncoding(max_children=1234)
         assert encoding.max_children == 1000
 
     def test_fanout_coord_small_values(self):
@@ -142,7 +151,8 @@ class TestFanoutChunkKeyEncodingMetadata:
 
     def test_to_dict_custom(self):
         """Test serialization with custom parameters."""
-        encoding = FanoutChunkKeyEncoding(max_children=12345)
+        with pytest.warns(UserWarning, match=r"it will be floored to 10000"):
+            encoding = FanoutChunkKeyEncoding(max_children=12345)
         result = encoding.to_dict()
 
         expected = {"name": "fanout", "configuration": {"max_children": 10000}}
@@ -152,7 +162,8 @@ class TestFanoutChunkKeyEncodingMetadata:
         """Test deserialization with full configuration."""
         data = {"name": "fanout", "configuration": {"max_children": 321}}
 
-        encoding = FanoutChunkKeyEncoding.from_dict(data)
+        with pytest.warns(UserWarning, match=r"it will be floored to 100"):
+            encoding = FanoutChunkKeyEncoding.from_dict(data)
         assert encoding.max_children == 100
         assert encoding.name == "fanout"
 

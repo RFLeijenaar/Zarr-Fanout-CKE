@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
+import warnings
 
 from zarr.core.chunk_key_encodings import ChunkKeyEncoding
 
@@ -10,12 +11,23 @@ class FanoutChunkKeyEncoding(ChunkKeyEncoding):
     max_children: int = 1000
 
     def __post_init__(self) -> None:
-        if self.max_children < 100:
+        original_max_children = self.max_children
+        if original_max_children < 100:
             raise ValueError("max_children must be at least 100.")
+
         # floor to a power of 10
-        object.__setattr__(
-            self, "max_children", 10 ** (len(str(self.max_children)) - 1)
-        )
+        floored_max_children = 10 ** (len(str(original_max_children)) - 1)
+        if original_max_children != floored_max_children:
+            warnings.warn(
+                (
+                    f"max_children value {original_max_children} is not a power of 10; "
+                    f"it will be floored to {floored_max_children}."
+                ),
+                UserWarning,
+                stacklevel=2,
+            )
+
+        object.__setattr__(self, "max_children", floored_max_children)
 
     @cached_property
     def decimal_len(self) -> int:
